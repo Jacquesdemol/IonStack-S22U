@@ -1,0 +1,110 @@
+name: IonStack - S908E Test Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: S908EXXSEGZE3
+
+jobs:
+  test-build:
+    name: Validate ${{ env.PROJECT }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show repository
+        run: |
+          git rev-parse --short HEAD
+          git status --short
+          echo "Project: $PROJECT"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            lld \
+            gcc-arm-linux-gnueabi \
+            binutils-arm-linux-gnueabi \
+            unzip \
+            wget \
+            file
+
+      - name: Install Android NDK
+        run: |
+          mkdir -p "$HOME/android-ndk"
+          cd "$HOME/android-ndk"
+
+          wget -q \
+            https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+
+          unzip -q android-ndk-r27c-linux.zip
+
+          echo "ANDROID_NDK_HOME=$HOME/android-ndk/android-ndk-r27c" \
+            >> "$GITHUB_ENV"
+
+          echo "$HOME/android-ndk/android-ndk-r27c" \
+            >> "$GITHUB_PATH"
+
+      - name: Verify toolchains
+        run: |
+          echo "=== GCC ARM ==="
+          arm-linux-gnueabi-gcc --version
+
+          echo "=== Clang ==="
+          clang --version
+
+          echo "=== NDK ==="
+          "$ANDROID_NDK_HOME/ndk-build" --version || true
+
+      - name: Verify S908E target
+        run: |
+          test -f "src/targets/$PROJECT/target.h"
+
+          echo "Target found:"
+          ls -lh "src/targets/$PROJECT/target.h"
+
+      - name: Show target configuration
+        run: |
+          sed -n '1,240p' "src/targets/$PROJECT/target.h"
+
+      - name: Show Make targets
+        run: |
+          make help || true
+          make -qp \
+            PROJECT="$PROJECT" \
+            2>/dev/null \
+            | grep -E '^[a-zA-Z0-9_.-]+:' \
+            | sort -u \
+            | head -100
+
+      - name: Dry-run preload build
+        run: |
+          make \
+            PROJECT="$PROJECT" \
+            -n \
+            preload
+
+      - name: Dry-run root-helper dependency graph
+        run: |
+          make \
+            PROJECT="$PROJECT" \
+            -n \
+            root-helper
+
+      - name: Check repository for generated artifacts
+        run: |
+          echo "Existing build directory:"
+          if [ -d build ]; then
+            find build -maxdepth 4 -type f -print
+          else
+            echo "No build directory."
+          fi
