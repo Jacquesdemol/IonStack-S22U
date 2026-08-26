@@ -72,39 +72,16 @@ jobs:
           echo "Target found:"
           ls -lh "src/targets/$PROJECT/target.h"
 
-      - name: Show target configuration
+      - name: Compilar
         run: |
-          sed -n '1,240p' "src/targets/$PROJECT/target.h"
+          make PROJECT=S908EXXSEGZE3
 
-      - name: Show Make targets
+      - name: Mostrar arquivos gerados
         run: |
-          make help || true
-          make -qp \
-            PROJECT="$PROJECT" \
-            2>/dev/null \
-            | grep -E '^[a-zA-Z0-9_.-]+:' \
-            | sort -u \
-            | head -100
+          find build -type f -maxdepth 5 -print
 
-      - name: Dry-run preload build
-        run: |
-          make \
-            PROJECT="$PROJECT" \
-            -n \
-            preload
-
-      - name: Dry-run root-helper dependency graph
-        run: |
-          make \
-            PROJECT="$PROJECT" \
-            -n \
-            root-helper
-
-      - name: Check repository for generated artifacts
-        run: |
-          echo "Existing build directory:"
-          if [ -d build ]; then
-            find build -maxdepth 4 -type f -print
-          else
-            echo "No build directory."
-          fi
+      - name: Publicar build
+        uses: actions/upload-artifact@v4
+        with:
+          name: S908E-build
+          path: build/S908EXXSEGZE3/
