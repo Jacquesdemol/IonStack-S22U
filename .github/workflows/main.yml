@@ -1,5 +1,7 @@
 name: IonStack - S908E Test Build
 
+name: Test Build
+
 on:
   workflow_dispatch:
 
@@ -7,12 +9,35 @@ permissions:
   contents: read
 
 env:
-  PROJECT: S908EXXSEGZE3
+  PROJECT: 8Gen1 - android12-5.10
 
 jobs:
   test-build:
-    name: Validate S908EXXSEGZE3
+    name: 8Gen1 - android12-5.10
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        project:
+          - S901BXXSNGZD7
+          - S901EXXSEGZE3
+          - S901U1UESAGZF3
+          - S901U1UESAGZH3
+          - S901USQSAGZF3
+          - S901USQSAGZH3
+          - S901USQU2BVK1
+          - S901WVLS4DWL3
+          - S901WVLSAGZH3
+          - S9060ZCS9GZA1
+          - S906EXXSEGZE3
+          - S908BXXSMGZB2
+          - S908BXXSNGZD7
+          - S908EXXSEGZE3
+          - S908EXXSEGZH4
+          - S908NKSS9GZE5
+          - S908WVLS8FYG7
+          - S908WVLSAGZE3
+          - SCG14KDS1EZE3
+          - X900XXU9DYE5
 
     steps:
       - name: Checkout repository
@@ -27,7 +52,6 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-
           sudo apt-get install -y \
             build-essential \
             clang \
@@ -42,46 +66,28 @@ jobs:
         run: |
           mkdir -p "$HOME/android-ndk"
           cd "$HOME/android-ndk"
-
-          wget -q \
-            https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
-
+          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
           unzip -q android-ndk-r27c-linux.zip
-
-          echo "ANDROID_NDK_HOME=$HOME/android-ndk/android-ndk-r27c" \
-            >> "$GITHUB_ENV"
-
-          echo "$HOME/android-ndk/android-ndk-r27c" \
-            >> "$GITHUB_PATH"
+          echo "ANDROID_NDK_HOME=$HOME/android-ndk/android-ndk-r27c" >> "$GITHUB_ENV"
+          echo "$HOME/android-ndk/android-ndk-r27c" >> "$GITHUB_PATH"
 
       - name: Verify toolchains
         run: |
           echo "=== GCC ARM ==="
           arm-linux-gnueabi-gcc --version
-
           echo "=== Clang ==="
           clang --version
-
           echo "=== NDK ==="
           "$ANDROID_NDK_HOME/ndk-build" --version || true
 
-      - name: Verify S908E target
+      - name: Build
         run: |
-          test -f "src/targets/$PROJECT/target.h"
+          make PROJECT="${{ matrix.project }}" clean preload root-helper
 
-          echo "Target found:"
-          ls -lh "src/targets/$PROJECT/target.h"
-
-      - name: Compilar
-        run: |
-          make PROJECT=S908EXXSEGZE3 clean preload root-helper
-
-      - name: Mostrar arquivos gerados
-        run: |
-          find build -type f -maxdepth 5 -print
-
-      - name: Publicar build
+      - name: Publish build
         uses: actions/upload-artifact@v4
         with:
-          name: S908E-build
-          path: build/S908EXXSEGZE3/
+          name: ${{ matrix.project }}-build
+          path: build/${{ matrix.project }}/
+          if-no-files-found: error
+          retention-days: 14
