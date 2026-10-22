@@ -1,7 +1,5 @@
 name: IonStack - S908E Test Build
 
-name: Test Build
-
 on:
   workflow_dispatch:
 
