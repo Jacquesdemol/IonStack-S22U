@@ -10,32 +10,9 @@ env:
   PROJECT: 8Gen1 - android12-5.10
 
 jobs:
-  test-build:
-    name: 8Gen1 - android12-5.10
+  build-all:
+    name: Build All Projects Sequentially
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        project:
-          - S901BXXSNGZD7
-          - S901EXXSEGZE3
-          - S901U1UESAGZF3
-          - S901U1UESAGZH3
-          - S901USQSAGZF3
-          - S901USQSAGZH3
-          - S901USQU2BVK1
-          - S901WVLS4DWL3
-          - S901WVLSAGZH3
-          - S9060ZCS9GZA1
-          - S906EXXSEGZE3
-          - S908BXXSMGZB2
-          - S908BXXSNGZD7
-          - S908EXXSEGZE3
-          - S908EXXSEGZH4
-          - S908NKSS9GZE5
-          - S908WVLS8FYG7
-          - S908WVLSAGZE3
-          - SCG14KDS1EZE3
-          - X900XXU9DYE5
 
     steps:
       - name: Checkout repository
@@ -45,7 +22,7 @@ jobs:
         run: |
           git rev-parse --short HEAD
           git status --short
-          echo "Project: $PROJECT"
+          echo "Project Env: $PROJECT"
 
       - name: Install system dependencies
         run: |
@@ -78,35 +55,55 @@ jobs:
           echo "=== NDK ==="
           "$ANDROID_NDK_HOME/ndk-build" --version || true
 
-      - name: Build
+      - name: Build all projects sequentially
         run: |
-          make PROJECT="${{ matrix.project }}" clean preload root-helper
+          # Cria a pasta de artefatos se não existir
+          mkdir -p artefacts
 
-      - name: Publish build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.project }}
-          path: build/${{ matrix.project }}/
-          if-no-files-found: error
-          retention-days: 14
+          # Lista com todos os projetos
+          projects=(
+            "S901BXXSNGZD7"
+            "S901EXXSEGZE3"
+            "S901U1UESAGZF3"
+            "S901U1UESAGZH3"
+            "S901USQSAGZF3"
+            "S901USQSAGZH3"
+            "S901USQU2BVK1"
+            "S901WVLS4DWL3"
+            "S901WVLSAGZH3"
+            "S9060ZCS9GZA1"
+            "S906EXXSEGZE3"
+            "S908BXXSMGZB2"
+            "S908BXXSNGZD7"
+            "S908EXXSEGZE3"
+            "S908EXXSEGZH4"
+            "S908NKSS9GZE5"
+            "S908WVLS8FYG7"
+            "S908WVLSAGZE3"
+            "SCG14KDS1EZE3"
+            "X900XXU9DYE5"
+          )
 
-  update-repo:
-    name: Update Artefacts Folder
-    needs: test-build
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artefacts/
+          # Loop para compilar cada projeto um por um
+          for proj in "${projects[@]}"; do
+            echo "================cionando build para: $proj ================"
+            
+            # Compila
+            make PROJECT="$proj" clean preload root-helper
+            
+            # Organiza os arquivos extraídos na pasta artefacts/<projeto>
+            mkdir -p "artefacts/$proj"
+            if [ -d "build/$proj" ]; then
+              cp -r build/$proj/* "artefacts/$proj/"
+            fi
+            
+            echo "Concluído: $proj"
+          done
 
       - name: Commit and push artefacts
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update build artefacts automatically [skip ci]"
+          commit_message: "chore: update all build artefacts sequentially [skip ci]"
           branch: ${{ github.ref_name }}
           file_pattern: artefacts/*
           create_branch: false
