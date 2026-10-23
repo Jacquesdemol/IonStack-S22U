@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PROJECT: 8Gen1 - android12-5.10
@@ -82,10 +82,31 @@ jobs:
         run: |
           make PROJECT="${{ matrix.project }}" clean preload root-helper
 
-      - name: Publish build
+      - name: Publish build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.project }}-build
+          name: ${{ matrix.project }}
           path: build/${{ matrix.project }}/
           if-no-files-found: error
           retention-days: 14
+
+  update-repo:
+    name: Update Artefacts Folder
+    needs: test-build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artefacts/
+
+      - name: Commit and push artefacts
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update build artefacts automatically [skip ci]"
+          branch: ${{ github.ref_name }}
+          file_pattern: artefacts/*
+          create_branch: false
